@@ -1,4 +1,4 @@
-name: Build realme GT Neo 5 Kernels (5 variants)
+name: Build realme GT Neo 5 Kernels (8 variants)
 
 on:
   workflow_dispatch:
@@ -9,52 +9,135 @@ on:
         required: true
         default: "github" # or "local"
         options:
-          - github
+          - github 
           - local
-      local_clean:
+          - local_clear
+          
+      build_KSU:
         type: choice
-        description: "Full cleanup?"
+        description: "KSU"
         required: true
-        default: 'no' # or yes/none
+        default: 'stable' # stands for '-'. Latest - 'main'
         options:
-          - 'no'
-          - 'yes'
+          - 'latest'
+          - 'stable'
           - 'none'
-      zram_patch:
-        type: boolean
-        description: "Apply SukiSU ZRAM patch?"
-        required: true
-        default: false
-      SUS_branch:
+      build_KSU_SUS:
         type: string
-        description: "Use latest SUSFS or apply specific commit?"
+        description: "KSU_SUSFS, 'latest', commit, or 'none'"
         required: true
         default: 'latest'
-
+        
+      build_KSUN:
+        type: choice
+        description: "KSU-Next"
+        required: true
+        default: 'stable' # stands for '-'. Latest - 'main'
+        options:
+          - 'latest'
+          - 'stable'
+          - 'none'
+      build_KSUN_SUS:
+        type: string
+        description: "KSUN_SUSFS, 'latest', commit, 'none'"
+        required: true
+        default: 'latest'
+        
+      build_WILD:
+        type: string
+        description: "Wild KSU, 'latest', tag, or 'none'"
+        required: true
+        default: 'latest'
+      build_WILD_SUS:
+        type: string
+        description: "WILD_SUSFS, 'latest', commit, 'none'"
+        required: true
+        default: 'latest'
+        
+      build_SUKI:
+        type: string
+        description: "Suki-Su, 'latest', tag, or 'none'"
+        required: true
+        default: 'latest'
+      build_SUKI_SUS:
+        type: string
+        description: "SUKI_SUSFS, 'latest', commit, 'none'"
+        required: true
+        default: 'latest'
+        
+      release:
+        type: choice
+        description: "Release?"
+        required: true
+        default: 'Test'
+        options:
+          - 'Release'
+          - 'Test-release'
+          - 'Test'
+          
+permissions:
+  contents: write
+  
 env:
-  CPU: 'sm8475'
-  FILE: 'realme_gt_neo5'
-  ANDROID_VERSION: 'android12'
-  KERNEL_NAME: '-android12-9'
+  SUSFS_VERSION: 'v1.5.12'
   RETENTION_COUNT: 5
+  TEMPORARY: ''
   
 jobs:
   build:
-    runs-on: ${{ github.event.inputs.run_mode == 'local' && 'self-hosted' || 'ubuntu-latest' }}
-
+    runs-on: ${{ github.event.inputs.run_mode == 'github' && 'ubuntu-latest' || 'self-hosted' }}
+    outputs:
+      KSU_COMMIT: ${{ steps.export_data.outputs.KSU_COMMIT }}
+      KSUN_COMMIT: ${{ steps.export_data.outputs.KSUN_COMMIT }}
+      WILD_COMMIT: ${{ steps.export_data.outputs.WILD_COMMIT }}
+      SUKI_COMMIT: ${{ steps.export_data.outputs.SUKI_COMMIT }}
+      KSU_SUS_COMMIT: ${{ steps.export_data.outputs.KSU_SUS_COMMIT }}
+      KSUN_SUS_COMMIT: ${{ steps.export_data.outputs.KSUN_SUS_COMMIT }}
+      WILD_SUS_COMMIT: ${{ steps.export_data.outputs.WILD_SUS_COMMIT }}
+      SUKI_SUS_COMMIT: ${{ steps.export_data.outputs.SUKI_SUS_COMMIT }}
+      STOCK_STATUS: ${{ steps.export_data.outputs.STOCK_STATUS }}
+      KSU_STATUS: ${{ steps.export_data.outputs.KSU_STATUS }}
+      KSUN_STATUS: ${{ steps.export_data.outputs.KSUN_STATUS }}
+      WILD_STATUS: ${{ steps.export_data.outputs.WILD_STATUS }}
+      KSU_SUS_STATUS: ${{ steps.export_data.outputs.KSU_SUS_STATUS }}
+      KSUN_SUS_STATUS: ${{ steps.export_data.outputs.KSUN_SUS_STATUS }}
+      WILD_SUS_STATUS: ${{ steps.export_data.outputs.WILD_SUS_STATUS }}
+      SUKI_SUS_STATUS: ${{ steps.export_data.outputs.SUKI_SUS_STATUS }}
+      
     steps:
       - name: Local runner special cleanup
-        if: github.event.inputs.run_mode == 'local'
+        if: github.event.inputs.run_mode != 'github'
         run: |
-          if [[ "${{ github.event.inputs.local_clean }}" == 'none' ]]; then
-          echo "nothing cleaned"
-          elif [[ "${{ github.event.inputs.local_clean }}" == 'yes' ]]; then
+          if [[ "${{ github.event.inputs.run_mode }}" == 'local_clear' ]]; then
           rm -rf ~/.repo ~/.repoconfig ~/vendor ~/device ~/snap ~/kernel_platform ~/out_boot ~/temporary
           else
           rm -rf ~/kernel_platform/common ~/kernel_platform/out ~/kernel_platform/KernelSU ~/kernel_platform/susfs4ksu \
           ~/kernel_platform/kernel_patches ~/out_boot ~/kernel_platform/KernelSU-Next ~/kernel_platform/Wild_KSU
           fi
-
+          
+      - name: Show input parameters and add input parameters to job summary
+        run: |
+          parmtable="$(
+          echo "## 🧾 Build Parameters Summary"
+          echo ""
+          echo "| Parameter | Value |"
+          echo "|-----------|-------|"
+          echo "| run_mode | ${{ inputs.run_mode }} |"
+          echo "| build_KSU | ${{ inputs.build_KSU }} |"
+          echo "| build_KSU_SUS | ${{ inputs.build_KSU_SUS }} |"
+          echo "| build_KSUN | ${{ inputs.build_KSUN }} |"
+          echo "| build_KSUN_SUS | ${{ inputs.build_KSUN_SUS }} |"
+          echo "| build_WILD | ${{ inputs.build_WILD }} |"
+          echo "| build_WILD_SUS | ${{ inputs.build_WILD_SUS }} |"
+          echo "| build_SUKI | ${{ inputs.build_SUKI }} |"
+          echo "| build_SUKI_SUS | ${{ inputs.build_SUKI_SUS }} |"
+          echo "| release | ${{ inputs.release }} |"
+          echo ""
+          echo "> Timestamp: $(date)"
+          )"
+          echo "$parmtable" >> $GITHUB_STEP_SUMMARY
+          echo "$parmtable"
+              
       - name: Remove Unwanted Software
         if: github.event.inputs.run_mode == 'github'
         uses: AdityaGarg8/remove-unwanted-software@v5
@@ -123,7 +206,17 @@ jobs:
         run: |
           cd ~/
           repo init https://github.com/Quantom2/gt_neo5_kernel_manifest.git -b oneplus/sm8475 -m realme_gt_neo5.xml --depth=1 --no-tags
-          repo sync --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j$(nproc --all)
+          for i in 1 2 3; do
+           if repo sync -c --no-clone-bundle --no-tags --optimized-fetch \
+             -j"$(nproc --all)" --fail-fast; then
+            success=true
+            break
+           fi
+           echo "⚠️ repo sync attempt $i failed; retrying..."
+           sleep 30
+          done
+          $success || { echo "::error::repo sync failed after 3 attempts"; exit 1; }
+          echo "✅ Kernel source synced"
 
       - name: Disk Space Before Build
         run: |
@@ -141,7 +234,7 @@ jobs:
           git clone https://github.com/WildPlusKernel/AnyKernel3.git -b gki-2.0 --depth=1 --no-tags
 
       - name: Modify Oplus build script
-        if: github.event.inputs.run_mode == 'github' || github.event.inputs.local_clean == 'yes'
+        if: github.event.inputs.run_mode != 'local'
         run: |
           cd ~/kernel_platform/oplus/build/
           sed -i '/init_environment/s/ \$1 \$2/ \$1 \$2 \$3 \$4 \$5/' oplus_build_kernel.sh
@@ -150,9 +243,25 @@ jobs:
           
       - name: Make own tool
         run: |
+          touch ~/start.sh
+            if [[ "${{ github.event.inputs.release }}" == 'Release' ]]; then
+          echo '
+          cd ~/
+          SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0 ./kernel_platform/oplus/build/oplus_build_kernel.sh wapio gki full all disable
+          echo " >>> BUILD DONE <<< "
+          ' > ~/start.sh
+            else
+          echo '
+          cd ~/
+          SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0 ./kernel_platform/oplus/build/oplus_build_kernel.sh wapio gki thin all disable
+          echo " >>> BUILD DONE <<< "
+          ' > ~/start.sh
+            fi
+          chmod a+x ~/start.sh
+          
           touch ~/make_out.sh
           echo '
-          cd ~/ && ./kernel_platform/oplus/build/oplus_build_kernel.sh wapio gki full all disable
+          cd ~/ && ./start.sh
           echo " >>> BUILDING BOOT IMG AND OTHERS <<< "
           echo "     >>> NAME: ${1} "
           cp ~/kernel_platform/out/msm-waipio-waipio-gki/dist/boot.img ~/boot
@@ -164,25 +273,31 @@ jobs:
           zip -r "../AnyKernel3" ./*
           mv ~/AnyKernel3.zip ~/out_boot/AnyKernel3_${1}.zip
           # Archive Image too
-          mv ~/AnyKernel3/Image ~/out_boot/Image_${1} || echo "Build >>> FAILED <<<"
+          mv ~/AnyKernel3/Image ~/out_boot/Image_${1} && STATUS='SUCCESS' || STATUS='FAILED'
+          echo "Build >>> $STATUS <<<"
+          echo "${1}_STATUS=${STATUS}" >> $GITHUB_ENV
+          # rm -rf ~/out_boot/${1}_boot.img ~/out_boot/Image_${1} #Delete boot IMG and IMAGE to save space
+          mkdir -p ~/rej/${1}/
+          cd ~/rej/${1}/
+          rej="$(find ~/kernel_platform/* -type f -iname *.rej)"
+          echo "Rejected patches: >>> $rej <<<"
+          for FILE in $rej; do
+            dir=${FILE#*/kernel_platform/}; dir=${dir%/*}/
+            file=${FILE##*/}
+            mkdir -p "$dir"
+            cp "$FILE" "$dir/$file"
+            cp "${FILE%.rej}" "$dir/${file%.rej}"
+            cp "${FILE%.rej}.orig" "$dir/${file%.rej}.orig"
+          done
           echo " >>> DONE <<< "
           ' > ~/make_out.sh
           chmod a+x ~/make_out.sh
                 # Allows to automate boot.img, Anykernel3 and Image creation automation
 
-#          if ; then
-#            echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$CONFIG_FILE"
-#            echo "CONFIG_KSU_MANUAL_HOOK=y" >> "$CONFIG_FILE"
-#          else
-#            echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> "$CONFIG_FILE"
-#            echo "CONFIG_KPROBES=y" >> "$CONFIG_FILE"
-#          fi
-
-
       - name: Change Kernel Name
         run: |
           cd ~/kernel_platform
-          MOD_VER="Unrooted"  # Name Kernel for user
+          MOD_VER="Stock"  # Name Kernel for user
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
           # Run perl command to modify UTS_VERSION
@@ -190,17 +305,9 @@ jobs:
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./common/scripts/mkcompile_h
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./msm-kernel/scripts/mkcompile_h
 
-          # Modify kernel version in EVERY part
-          # sed -i 's/echo "\$res"/res="$(echo "\$res" | sed '\''\s\/-9-o-.*\/\/'\'' )"/' ./common/scripts/setlocalversion
-          # echo 'echo "$res-QTARO-1.0-${MOD_VER}"' >> ./common/scripts/setlocalversion
+          # Modify kernel version in EVERY file
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
-
-          # sed -i 's/echo "\$res"/res="$(echo "\$res" | sed '\''\s\/-9-o-.*\/\/'\'' )"/' ./msm-kernel/scripts/setlocalversion
-          # echo 'echo "$res-QTARO-1.0-${MOD_VER}"' >> ./msm-kernel/scripts/setlocalversion
           sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
-          
-          # sed -i 's/echo "\$res"/res="$(echo "\$res" | sed '\''\s\/-9-o-.*\/\/'\'' )"/' ./external/dtc/scripts/setlocalversion
-          # echo 'echo "$res-QTARO-1.0-${MOD_VER}"' >> ./external/dtc/scripts/setlocalversion
           sed -i 's/-dirty//' ./external/dtc/scripts/setlocalversion
           
           tac ./common/scripts/setlocalversion | sed '0,/echo "\$res"/s//res=\$\(echo \$res \| cut -d- -f1-2\)-QTARO-1.0-${MOD_VER}\;echo "\$res"\;/' | tac > ./common/scripts/setlocalversion.tmp && mv ./common/scripts/setlocalversion.tmp ./common/scripts/setlocalversion
@@ -216,31 +323,60 @@ jobs:
       - name: Initial Kernel tweaks (config)
         run: |
           cd ~/kernel_platform
+          
+          # Adding BBG...
+          if ! wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash; then
+           echo "::warning::BBG setup script failed, continuing anyway"
+          fi
+          echo "CONFIG_BBG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' common/security/Kconfig
 
           # Add additional tmpfs config setting
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
           
-          # Add additional config setting
+          # Add TTL Target Support
           echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-          # Add BBR Config
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
+          #Disable some modules for modules.order integrity
           echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
-          
+
+          # Add BBR Config
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_NET_SCH_FQ_CODEL=y" >> ./common/arch/arm64/configs/gki_defconfig
+
+          # Add IP SET Support
+          cat >> common/arch/arm64/configs/gki_defconfig <<EOF
+          CONFIG_IP_SET=y
+          CONFIG_IP_SET_MAX=65534
+          CONFIG_IP_SET_BITMAP_IP=y
+          CONFIG_IP_SET_BITMAP_IPMAC=y
+          CONFIG_IP_SET_BITMAP_PORT=y
+          CONFIG_IP_SET_HASH_IP=y
+          CONFIG_IP_SET_HASH_IPMARK=y
+          CONFIG_IP_SET_HASH_IPPORT=y
+          CONFIG_IP_SET_HASH_IPPORTIP=y
+          CONFIG_IP_SET_HASH_IPPORTNET=y
+          CONFIG_IP_SET_HASH_IPMAC=y
+          CONFIG_IP_SET_HASH_MAC=y
+          CONFIG_IP_SET_HASH_NETPORTNET=y
+          CONFIG_IP_SET_HASH_NET=y
+          CONFIG_IP_SET_HASH_NETNET=y
+          CONFIG_IP_SET_HASH_NETPORT=y
+          CONFIG_IP_SET_HASH_NETIFACE=y
+          CONFIG_IP_SET_LIST_SET=y
+          EOF
 
           # Remove check_defconfig
           sed -i 's/check_defconfig//' ./common/build.config.gki
 
       - name: Initial Kernel tweaks (ZRAM)
-        if: github.event.inputs.zram_patch == 'true'
         run: |
           cd ~/kernel_platform
           git clone https://github.com/ShirkNeko/SukiSU_patch.git --depth=1 --no-tags
@@ -253,29 +389,44 @@ jobs:
           patch -p1 < lz4k_oplus.patch
           # patch -p1 -F3 --fuzz=3 < 0001-lz4-Update-to-version-1.9.4.patch
           # 1.9.4 Not working correctly
+          
           cd ~/kernel_platform && rm -rf SukiSU_patch
-          echo "CONFIG_ZRAM=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4HC_COMPRESS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4_DECOMPRESS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4K_COMPRESS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4K_DECOMPRESS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4KD_COMPRESS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4KD_DECOMPRESS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_ZRAM_DEF_COMP_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
+          CONFIG_FILE="./common/arch/arm64/configs/gki_defconfig"
+          echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZRAM=y" >> "$CONFIG_FILE"
+          echo "CONFIG_MODULE_SIG=n" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_LZO=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZRAM_DEF_COMP_LZ4KD=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_LZ4HC=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_LZ4K=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_LZ4KD=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_842=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
+
+          # Additional
+          rm "common/android/gki_aarch64_modules"
+          touch "common/android/gki_aarch64_modules"
           
-      - name: Apply ptrace patch
+      - name: Initial Kernel tweaks (Ptrace & Mem patch)
         run: |
+          cd ~/kernel_platform
+          git clone https://github.com/TheWildJames/kernel_patches.git --depth=1 --no-tags
           cd ~/kernel_platform/common
-          curl -Ls https://raw.githubusercontent.com/fatalcoder524/kernel_patches_additional/refs/heads/main/ptrace.patch  | patch -p1 -F 3
-          
-      - name: Build 1 (Stock kernel)
+          patch -p1 -F 3 < ~/kernel_platform/kernel_patches/gki_ptrace.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/optimized_mem_operations.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/file_struct_8bytes_align.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/reduce_cache_pressure.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/clear_page_16bytes_align.patch || echo "Patch failed but continuing"
+          rm -rf ~/kernel_platform/kernel_patches
+   
+      - name: Build 1 (STOCK)
         run: |
-          cd ~/ && ./make_out.sh "no_root"
+          cd ~/ && ./make_out.sh "STOCK"
 
       - name: Disk Space after Build 1
         run: |
@@ -283,6 +434,7 @@ jobs:
           df -h
 
       - name: Get ready for reusing stock compiled files
+        if:   (github.event.inputs.build_KSU != 'none' && github.event.inputs.build_KSUN != 'none') || (github.event.inputs.build_KSU != 'none' && github.event.inputs.build_WILD != 'none') ||  (github.event.inputs.build_KSU != 'none' && github.event.inputs.build_SUKI != 'none') ||  (github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_WILD != 'none') ||  (github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_SUKI != 'none') ||  (github.event.inputs.build_WILD != 'none' && github.event.inputs.build_SUKI != 'none')
         run: |
           if [[ "${{ github.event.inputs.run_mode }}" == 'github' ]]; then
           TEMPORARY="${GITHUB_WORKSPACE}/temporary"
@@ -296,35 +448,42 @@ jobs:
           cp -r ~/kernel_platform/common/* "$TEMPORARY/common"
           cp -r ~/kernel_platform/out/* "$TEMPORARY/out"
 
-      - name: Disk Space after saving OUT
+      - name: Disk Space after saving OUT 
         run: |
           echo "Disk Space after saving OUT:"
           df -h
 
       - name: Download KernelSU for Build 2
+        if: github.event.inputs.build_KSU != 'none' 
         run: |
           cd ~/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+          if [[ "${{ github.event.inputs.build_KSU }}" == 'stable' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+          elif [[ "${{ github.event.inputs.build_KSU }}" == 'latest' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          fi
           cd ~/
 
       - name: Getting KernelSU Version to update MOD_VER for Build 2
+        if: github.event.inputs.build_KSU != 'none' 
         run: |
           cd ~/kernel_platform/KernelSU/kernel/
           BASE_VERSION=10200
           KSU_VERSION="$(expr $(/usr/bin/git rev-list --count HEAD) "+" $BASE_VERSION)"
-          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
+          cd ../ && COMMIT=$(git rev-parse HEAD)
           MOD_VER="KSU_Only_v${KSU_VERSION}" # Name Kernel for user
+          echo "KSU_COMMIT=https://github.com/tiann/KernelSU/commit/$COMMIT" >> $GITHUB_ENV
+          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
       - name: KernelSU Kernel tweaks for Build 2
+        if: github.event.inputs.build_KSU != 'none' 
         run: |
           cd ~/kernel_platform
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # Add patches
-          echo "CONFIG_KSU_KPROBES_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # KPROBES yes since manual hooks is not supported?
           
-      - name: Build 2 (KernelSU)
+      - name: Build 2 (KSU)
+        if: github.event.inputs.build_KSU != 'none' 
         run: |
           cd ~/ && ./make_out.sh "KSU"
 
@@ -334,13 +493,25 @@ jobs:
           df -h
 
       - name: Download SUSFS and patches for Build 3
+        if: github.event.inputs.build_KSU != 'none' && github.event.inputs.build_KSU_SUS != 'none'
         run: |
           cd ~/kernel_platform
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
           git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
-          cd ~/
+          if [[ "${{ github.event.inputs.build_KSU_SUS }}" == 'latest' ]]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
+          else
+            git init susfs4ksu
+            cd ~/kernel_platform/susfs4ksu
+            git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
+            git fetch origin "${{ github.event.inputs.build_KSU_SUS }}" --depth=1 --no-tags
+            git checkout FETCH_HEAD
+          fi
+          cd ~/kernel_platform/susfs4ksu
+          COMMIT=$(git rev-parse HEAD)
+          echo "KSU_SUS_COMMIT=https://gitlab.com/simonpunk/susfs4ksu/-/commit/$COMMIT" >> $GITHUB_ENV
 
       - name: Make SUSFS->KSU patches for Build 3
+        if: github.event.inputs.build_KSU != 'none' && github.event.inputs.build_KSU_SUS != 'none'
         run: |
           cd ~/kernel_platform
           cp -r susfs4ksu/kernel_patches/fs/* common/fs
@@ -350,13 +521,12 @@ jobs:
           cp kernel_patches/69_hide_stuff.patch common/                                 # Add extra patchs
           cd ~/kernel_platform/common
           patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" # Apply android kernel patch
+          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply hide stuff patch 
           cd ~/kernel_platform/KernelSU/
-          patch -p1 --fuzz=1 -F1 < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"  # Apply KSU patch
-          cd ~/kernel_platform/common/
-          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply extra patchs
-          cd ~/
+          patch -p1 --fuzz=3 -F3 < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"  # Apply KSU patch
           
       - name: Add Configuration and SUSfs Settings for Build 3
+        if: github.event.inputs.build_KSU != 'none' && github.event.inputs.build_KSU_SUS != 'none'
         run: |
           cd ~/kernel_platform
           echo "Adding configuration settings to gki_defconfig..."
@@ -378,27 +548,30 @@ jobs:
 
           # Magic mount setting for KSU = n, others = y!
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=n" >> ./common/arch/arm64/configs/gki_defconfig # Use n for off KSU
-          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig # ALWAYS USE n FOR LATEST ANY KSU
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig # ALWAYS USE n FOR LATEST ANY KSU
 
       - name: Adding SUSfs in the name KSU for Build 3
+        if: github.event.inputs.build_KSU != 'none' && github.event.inputs.build_KSU_SUS != 'none'
         run: |
-          MOD_VER="KSU_v${KSU_VERSION}_SUSFS_v1.5.9" # Name Kernel for user
+          MOD_VER="KSU_v${KSU_VERSION}_SUSFS_${SUSFS_VERSION}" # Name Kernel for user
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
-      - name: Build 3 (KernelSU+SUSFS)
+      - name: Build 3 (KSU_SUS)
+        if: github.event.inputs.build_KSU != 'none' && github.event.inputs.build_KSU_SUS != 'none'
         run: |
-          cd ~/ && ./make_out.sh "KSU_SUSFS"
-          
+          cd ~/ && ./make_out.sh "KSU_SUS"
+
       - name: Disk Space after Build 3
         run: |
           echo "Disk Space after Build 3:"
           df -h
-          
+
       - name: Remove root solution 
         run: |
           rm -rf ~/kernel_platform/KernelSU ~/kernel_platform/susfs4ksu ~/kernel_platform/kernel_patches
 
       - name: Reusing stock compiled files №1
+        if: github.event.inputs.build_KSU != 'none' && env.TEMPORARY != ''
         run: |
           rm -rf ~/kernel_platform/common ~/kernel_platform/out
           cd ~/ && repo sync --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j$(nproc --all)
@@ -407,28 +580,33 @@ jobs:
           cp -r "$TEMPORARY/common/"* ~/kernel_platform/common/
           cp -r "$TEMPORARY/out/"* ~/kernel_platform/out/
 
-      - name: Disk Space before Build 4
-        run: |
-          echo "Disk Space before Build 4:"
-          df -h
-
-      - name: Download KSUNext for Build 4
+      - name: Download KernelSU-Next for Build 4
+        if: github.event.inputs.build_KSUN != 'none' && env.TEMPORARY != ''
         run: |
           cd ~/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
+          if [[ "${{ github.event.inputs.build_KSUN }}" == 'stable' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
+          elif [[ "${{ github.event.inputs.build_KSUN }}" == 'latest' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          fi
           cd ~/
 
-      - name: Getting KernelSUNext Version to update MOD_VER for Build 4
+      - name: Getting KernelSU-Next Version to update MOD_VER for Build 4
+        if: github.event.inputs.build_KSUN != 'none'
         run: |
           cd ~/kernel_platform/KernelSU-Next/kernel/
           BASE_VERSION=10200
           KSU_VERSION="$(expr $(/usr/bin/git rev-list --count HEAD) "+" $BASE_VERSION)"
-          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
+          cd ../ && COMMIT=$(git rev-parse HEAD)
           MOD_VER="KSUN_Only_v${KSU_VERSION}" # Name Kernel for user
+          echo "KSUN_COMMIT=https://github.com/KernelSU-Next/KernelSU-Next/commit/$COMMIT" >> $GITHUB_ENV
+          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
-      - name: KernelSUNext config update for Build 4
-        run: |    
+      - name: KernelSU-Next config update for Build 4
+        if: github.event.inputs.build_KSUN != 'none'
+        run: |
           # Add patches
           cd ~/kernel_platform/
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -436,88 +614,78 @@ jobs:
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
 
       - name: Apply manual hooks for Build 4
+        if: github.event.inputs.build_KSUN != 'none'
         run: |
           cd ~/kernel_platform
           git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
           cp kernel_patches/next/scope_min_manual_hooks_v1.4.patch common/           # Add manual hooks
           cd ~/kernel_platform/common
-          patch -p1 --fuzz=3 -F3 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing"
+          patch -p1 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing"
           rm -rf ~/kernel_platform/kernel_patches
           
-      - name: Build 4 (KSUNext)
+      - name: Build 4 (KSUN)
+        if: github.event.inputs.build_KSUN != 'none'
         run: |
           cd ~/ && ./make_out.sh "KSUN"
-          
+
       - name: Disk Space after Build 4
         run: |
           echo "Disk Space after Build 4:"
           df -h
-          
+
       - name: Adding SUSfs in the name for Build 5
+        if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
         run: |
-          MOD_VER="KSUN_v${KSU_VERSION}_SUSFS_v1.5.9" # Name Kernel for user
+          MOD_VER="KSUN_v${KSU_VERSION}_SUSFS_${SUSFS_VERSION}" # Name Kernel for user
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
       - name: Download SUSfs and patches for Build 5
+        if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
         run: |
           cd ~/kernel_platform
-          if [[ "${{ github.event.inputs.SUS_branch }}" == 'latest' ]]; then
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
-          else
-          git init susfs4ksu
-          cd ~/kernel_platform/susfs4ksu
-          git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
-          git fetch origin "${{ inputs.SUS_branch }}" --depth=1 --no-tags
-          git checkout FETCH_HEAD
-          fi
-          cd ~/kernel_platform
           git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
+          if [[ "${{ github.event.inputs.build_KSUN_SUS }}" == 'latest' ]]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
+          else
+            git init susfs4ksu
+            cd ~/kernel_platform/susfs4ksu
+            git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
+            git fetch origin "${{ github.event.inputs.build_KSUN_SUS }}" --depth=1 --no-tags
+            git checkout FETCH_HEAD
+          fi
+          cd ~/kernel_platform/susfs4ksu
+          COMMIT=$(git rev-parse HEAD)
+          echo "KSUN_SUS_COMMIT=https://gitlab.com/simonpunk/susfs4ksu/-/commit/$COMMIT" >> $GITHUB_ENV
 
-      - name: Make SUSFS->KSU-Next patches for Build 5
+      - name: Make SUSFS->KernelSU-Next patches for Build 5
+        if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
         run: |
           cd ~/kernel_platform
           cp -r susfs4ksu/kernel_patches/fs/* common/fs
           cp -r susfs4ksu/kernel_patches/include/* common/include/
           cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch common/       # Add android kernel patch
           cp susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch KernelSU-Next/  # Add KSU patch
-          cp kernel_patches/69_hide_stuff.patch common/                                      # Add extra patchs
+          cp kernel_patches/69_hide_stuff.patch common/                                 # Add extra patchs
           cp kernel_patches/next/scope_min_manual_hooks_v1.4.patch common/                   # Add extra patchs for NEXT
           cd ~/kernel_platform/common
           patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" # Apply android kernel patch
-          echo " >>> NEXT PATCH <<<"
-          patch -p1 --fuzz=3 -F3 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing"
+          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply hide stuff patch
           echo " >>> NEXT PATCH <<<"
           cd ~/kernel_platform/KernelSU-Next/
-          patch -p1 --fuzz=3 -F3 < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"            # Apply KSU patch
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"            # Apply KSU patch
           echo " >>> NEXT PATCH <<<"
-          cd ~/kernel_platform/common/
-          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"                 # Apply extra patchs
-          echo " >>> NEXT PATCH <<<"
-          cd ~/
+          cd ~/kernel_platform/KernelSU-Next
 
-          #More patches
-          cd ~/kernel_platform/kernel_patches/next/susfs_fix_patches/v1.5.9/
-          cp fix_apk_sign.c.patch ~/kernel_platform/KernelSU-Next/
-          cp fix_core_hook.c.patch ~/kernel_platform/KernelSU-Next/
-          cp fix_selinux.c.patch ~/kernel_platform/KernelSU-Next/
-          cp fix_ksud.c.patch ~/kernel_platform/KernelSU-Next/
-          cp fix_rules.c.patch ~/kernel_platform/KernelSU-Next/
-          cp fix_sucompat.c.patch ~/kernel_platform/KernelSU-Next/
-
-              cd ~/kernel_platform/KernelSU-Next/
-              patch -p1 --forward --fuzz=3 -F3 < fix_apk_sign.c.patch || echo "Patch failed but continuing"
-              echo " >>> NEXT PATCH <<<"
-              patch -p1 --fuzz=3 < fix_core_hook.c.patch || echo "Patch failed but continuing"
-              echo " >>> NEXT PATCH <<<"
-              patch -p1 --forward --fuzz=3 < fix_selinux.c.patch || echo "Patch failed but continuing"
-              echo " >>> NEXT PATCH <<<"
-              patch -p1 --forward --fuzz=3 < fix_ksud.c.patch || echo "Patch failed but continuing"
-              echo " >>> NEXT PATCH <<<"
-              patch -p1 --forward --fuzz=3 < fix_rules.c.patch || echo "Patch failed but continuing"
-              echo " >>> NEXT PATCH <<<"
-              patch -p1 --forward --fuzz=3 < fix_sucompat.c.patch || echo "Patch failed but continuing"
+          # Fixing failed patches
+          for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
+             echo "Patching file: $file.c with fix_$file.c.patch"
+             patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.c.patch  || echo "Patch failed but continuing"
+             echo " >>> NEXT PATCH <<<"
+          done
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch  || echo "Patch failed but continuing"
               
       - name: Add Configuration and SUSfs Settings for Build 5
+        if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
         run: |
           cd ~/kernel_platform
           # Apply SUS config
@@ -542,14 +710,11 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig # NEXT have Magic mount
           echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig # ALWAYS USE n FOR LATEST ANY KSU
 
-          # Temporary solution
-          cp ~/KernelSU-Next_Patched/kernel/core_hook.c ~/kernel_platform/KernelSU-Next/kernel/
-
-
-      - name: Build 5 (KSUNext+SUSFS)
+      - name: Build 5 (KSUN_SUS)
+        if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
         run: |
-          cd ~/ && ./make_out.sh "KSUN+SUSFS"
-          
+          cd ~/ && ./make_out.sh "KSUN_SUS"
+
       - name: Disk Space after Build 5
         run: |
           echo "Disk Space after Build 5:"
@@ -560,6 +725,7 @@ jobs:
           rm -rf ~/kernel_platform/KernelSU-Next ~/kernel_platform/susfs4ksu ~/kernel_platform/kernel_patches
 
       - name: Reusing stock compiled files №2
+        if: github.event.inputs.build_KSUN != 'none' && env.TEMPORARY != ''
         run: |
           rm -rf ~/kernel_platform/common ~/kernel_platform/out
           cd ~/ && repo sync --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j$(nproc --all)
@@ -568,92 +734,110 @@ jobs:
           cp -r "$TEMPORARY/common/"* ~/kernel_platform/common/
           cp -r "$TEMPORARY/out/"* ~/kernel_platform/out/
 
-      - name: Disk Space before Build 6
-        run: |
-          echo "Disk Space before Build 6:"
-          df -h
-
-      - name: Download WildKSU for Build 6
+      - name: Download Wild KSU for Build 6
+        if: github.event.inputs.build_WILD != 'none'
         run: |
           cd ~/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash wild
-          cd ~/kernel_platform/Wild_KSU
-          git switch wild # Make sure it is not SUSfs version
+          if [[ "${{ github.event.inputs.build_WILD }}" == 'latest' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
+          else
+            curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s "${{ github.event.inputs.build_WILD }}"
+          fi
           cd ~/
           
-      - name: Getting WildKSU Version to update MOD_VER for Build 6
+      - name: Getting Wild KSU Version to update MOD_VER for Build 6
+        if: github.event.inputs.build_WILD != 'none'
         run: |
           cd ~/kernel_platform/Wild_KSU/kernel/
           BASE_VERSION=10200
           KSU_VERSION="$(expr $(/usr/bin/git rev-list --count HEAD) "+" $BASE_VERSION)"
+          cd ../ && COMMIT=$(git rev-parse HEAD)
           MOD_VER="WildKSU_Only_v${KSU_VERSION}" # Name Kernel for user
+          echo "WILD_COMMIT=https://github.com/WildKernels/Wild_KSU/commit/$COMMIT" >> $GITHUB_ENV
+          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
-      - name: Download and apply patches for Build 6
+      - name: Apply manual hooks for Build 6
+        if: github.event.inputs.build_WILD != 'none'
         run: |
           cd ~/kernel_platform
           git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
-          cp kernel_patches/69_hide_stuff.patch common/                                      # Add extra patchs
-          cp kernel_patches/wild/syscall_hooks.patch common/                   # Add extra patchs for WILD
+          cp kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch common/            # Add hooks for WILD
           cd ~/kernel_platform/common
-          patch -p1 -F3 < syscall_hooks.patch || echo "Patch failed but continuing" # Apply android kernel patch
+          patch -p1 -F 3 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing" # Apply android kernel patch
+          cd ~/kernel_platform
           rm -rf kernel_patches
 
-      - name: WildKSU Kernel tweaks for Build 6
+      - name: Wild KSU Kernel tweaks for Build 6
+        if: github.event.inputs.build_WILD != 'none'
         run: |
           # Add patches
           cd ~/kernel_platform/
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
-          
-      - name: Disk Space after Build 6
-        run: |
-          echo "Disk Space after Build 6:"
-          df -h      
-          
-      - name: Build 6 (WildKSU)
+
+      - name: Build 6 (WILD)
+        if: github.event.inputs.build_WILD != 'none'
         run: |
           cd ~/ && ./make_out.sh "WILD"
 
-      - name: Adding SUSfs in the name for Build 7
+      - name: Disk Space after Build 6
         run: |
-          MOD_VER="WildKSU_v${KSU_VERSION}_SUSFS_v1.5.9" # Name Kernel for user
+          echo "Disk Space after Build 6:"
+          df -h
+
+      - name: Adding SUSfs in the name for Build 7
+        if: github.event.inputs.build_WILD != 'none' && github.event.inputs.build_WILD_SUS != 'none'
+        run: |
+          MOD_VER="WildKSU_v${KSU_VERSION}_SUSFS_${SUSFS_VERSION}" # Name Kernel for user
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
       - name: Download SUSfs and patches for Build 7
+        if: github.event.inputs.build_WILD != 'none' && github.event.inputs.build_WILD_SUS != 'none'
         run: |
           cd ~/kernel_platform
-          if [[ "${{ github.event.inputs.SUS_branch }}" == 'latest' ]]; then
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
+          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
+          if [[ "${{ github.event.inputs.build_WILD_SUS }}" == 'latest' ]]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
           else
-          git init susfs4ksu
-          cd ~/kernel_platform/susfs4ksu
-          git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
-          git fetch origin "${{ inputs.SUS_branch }}" --depth=1 --no-tags
-          git checkout FETCH_HEAD
+            git init susfs4ksu
+            cd ~/kernel_platform/susfs4ksu
+            git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
+            git fetch origin "${{ github.event.inputs.build_WILD_SUS }}" --depth=1 --no-tags
+            git checkout FETCH_HEAD
           fi
-          cd ~/kernel_platform
-          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags 
+          cd ~/kernel_platform/susfs4ksu
+          COMMIT=$(git rev-parse HEAD)
+          echo "WILD_SUS_COMMIT=https://gitlab.com/simonpunk/susfs4ksu/-/commit/$COMMIT" >> $GITHUB_ENV
           
-      - name: Make SUSFS->KSU-Next patches for Build 7
+      - name: Make SUSFS->Wild KSU patches for Build 7
+        if: github.event.inputs.build_WILD != 'none' && github.event.inputs.build_WILD_SUS != 'none'
         run: |
           cd ~/kernel_platform
           cp -r susfs4ksu/kernel_patches/fs/* common/fs
           cp -r susfs4ksu/kernel_patches/include/* common/include/
+          cp susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch Wild_KSU/  # Add KSU patch
           cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch common/       # Add android kernel patch
-          cp kernel_patches/69_hide_stuff.patch common/                                      # Add extra patchs
+          cp kernel_patches/69_hide_stuff.patch common/                                 # Add extra patchs
           cd ~/kernel_platform/common
-          patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" # Apply android kernel patch
+          patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" #Apply android kernel patch
+          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply hide stuff patch
           echo " >>> NEXT PATCH <<<"
-          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"                 # Apply extra patchs     
-          
-      - name: Switch branch for Build 7
-        run: |
           cd ~/kernel_platform/Wild_KSU
-          git switch wild-susfs # Switch to SUSfs version
+          patch -p1 < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"
+
+          # Fixes
+          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_core_hook.c.patch ./
+          patch -p1 < fix_core_hook.c.patch
+
+          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_sucompat.c.patch ./
+          patch -p1 < fix_sucompat.c.patch
+
+          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch ./
+          patch -p1 < fix_kernel_compat.c.patch
           
       - name: Add Configuration and SUSfs Settings for Build 7
+        if: github.event.inputs.build_WILD != 'none' && github.event.inputs.build_WILD_SUS != 'none'
         run: |
           cd ~/kernel_platform
           # Apply SUS config
@@ -678,21 +862,368 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig # NEXT have Magic mount
           echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig # ALWAYS USE n FOR LATEST ANY KSU
           
-      - name: Build 7 (WildKSU+SUSFS)
+      - name: Build 7 (WILD_SUS)
+        if: github.event.inputs.build_WILD != 'none' && github.event.inputs.build_WILD_SUS != 'none'
         run: |
-          cd ~/ && ./make_out.sh "WILD_SUSFS"
+          cd ~/ && ./make_out.sh "WILD_SUS"
 
       - name: Disk Space after Build 7
         run: |
           echo "Disk Space after Build 7:"
           df -h
+          
+      - name: Remove root solution
+        run: |
+          rm -rf ~/kernel_platform/Wild_KSU ~/kernel_platform/susfs4ksu ~/kernel_platform/kernel_patches
+
+      - name: Reusing stock compiled files №3
+        if: github.event.inputs.build_WILD != 'none' && env.TEMPORARY != ''
+        run: |
+          rm -rf ~/kernel_platform/common ~/kernel_platform/out
+          cd ~/ && repo sync --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j$(nproc --all)
+          mkdir -p ~/kernel_platform/common/
+          mkdir -p ~/kernel_platform/out/
+          cp -r "$TEMPORARY/common/"* ~/kernel_platform/common/
+          cp -r "$TEMPORARY/out/"* ~/kernel_platform/out/
+
+      - name: Download Suki-SU Ultra for Build 8
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/kernel_platform
+          if [[ "${{ github.event.inputs.build_SUKI }}" == 'latest' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+          else
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s "${{ github.event.inputs.build_SUKI }}"
+          fi
+          cd ~/
+
+      - name: Getting Suki-SU Ultra Version and add SUSfs into name for Build 8
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/kernel_platform/KernelSU/kernel/
+          BASE_VERSION=10606
+          KSU_VERSION="$(expr $(/usr/bin/git rev-list --count main) "+" $BASE_VERSION)"
+          cd ../ && COMMIT=$(git rev-parse HEAD)
+          MOD_VER="SukiSU_v${KSU_VERSION}_SUSFS_${SUSFS_VERSION}" # Name Kernel for user
+          echo "SUKI_COMMIT=https://github.com/SukiSU-Ultra/SukiSU-Ultra/commit/$COMMIT" >> $GITHUB_ENV
+          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
+          echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+
+      - name: SukiSU Kernel tweaks for Build 8
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/kernel_platform
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig;
+          # CONFIG_KSU_MANUAL_HOOK is not set & CONFIG_KPROBES=y
+
+      - name: Download SUSfs and patches for Build 8
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/kernel_platform
+          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
+          if [[ "${{ github.event.inputs.build_SUKI_SUS }}" == 'latest' ]]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 --depth=1 --no-tags
+          else
+            git init susfs4ksu
+            cd ~/kernel_platform/susfs4ksu
+            git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
+            git fetch origin "${{ github.event.inputs.build_SUKI_SUS }}" --depth=1 --no-tags
+            git checkout FETCH_HEAD
+          fi
+          cd ~/kernel_platform/susfs4ksu
+          COMMIT=$(git rev-parse HEAD)
+          echo "SUKI_SUS_COMMIT=https://gitlab.com/simonpunk/susfs4ksu/-/commit/$COMMIT" >> $GITHUB_ENV
+
+      - name: Make SUSFS->Suki-SU Ultra patches for Build 8
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/kernel_platform
+          cp -r susfs4ksu/kernel_patches/fs/* common/fs
+          cp -r susfs4ksu/kernel_patches/include/* common/include/
+          cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch common/  # Add android kernel patch
+          cp kernel_patches/69_hide_stuff.patch common/                                 # Add extra patchs
+          cd ~/kernel_platform/common
+          patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" # Apply android kernel patch
+          patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply extra patchs 
+          
+      - name: Add Configuration and SUSfs Settings for Build 8
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/kernel_platform
+          echo "Adding configuration settings to gki_defconfig..."
+          
+          # Add SUSFS configuration settings
+          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
+          
+          # Magic mount setting for KSU = n, others = y!
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig # Use y for suki
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig # ALWAYS USE n FOR LATEST ANY KSU
+
+      - name: Build 8 (SukiSU+SUSFS)
+        if: github.event.inputs.build_SUKI != 'none' && github.event.inputs.build_SUKI_SUS != 'none'
+        run: |
+          cd ~/ && ./make_out.sh "SUKI_SUS"
+          
+      - name: Disk Space after Build 8
+        run: |
+          echo "Disk Space before Build 8:"
+          df -h
+          
+      - name: Remove root solution
+        if: false
+        run: |
+          rm -rf ~/kernel_platform/KernelSU ~/kernel_platform/susfs4ksu ~/kernel_platform/kernel_patches
+
+      - name: Export KSU commit
+        if: always()   # To always get back even if failed
+        id: export_data
+        run: |
+         echo "KSU_COMMIT=$KSU_COMMIT" >> $GITHUB_OUTPUT
+         echo "KSUN_COMMIT=$KSUN_COMMIT" >> $GITHUB_OUTPUT
+         echo "WILD_COMMIT=$WILD_COMMIT" >> $GITHUB_OUTPUT
+         echo "SUKI_COMMIT=$SUKI_COMMIT" >> $GITHUB_OUTPUT
+         echo "KSU_SUS_COMMIT=$KSU_SUS_COMMIT" >> $GITHUB_OUTPUT
+         echo "KSUN_SUS_COMMIT=$KSUN_SUS_COMMIT" >> $GITHUB_OUTPUT
+         echo "WILD_SUS_COMMIT=$WILD_SUS_COMMIT" >> $GITHUB_OUTPUT
+         echo "SUKI_SUS_COMMIT=$SUKI_SUS_COMMIT" >> $GITHUB_OUTPUT
+         echo "STOCK_STATUS=$STOCK_STATUS" >> $GITHUB_OUTPUT
+         echo "KSU_STATUS=$KSU_STATUS" >> $GITHUB_OUTPUT
+         echo "KSUN_STATUS=$KSUN_STATUS" >> $GITHUB_OUTPUT
+         echo "WILD_STATUS=$WILD_STATUS" >> $GITHUB_OUTPUT
+         echo "KSU_SUS_STATUS=$KSU_SUS_STATUS" >> $GITHUB_OUTPUT
+         echo "KSUN_SUS_STATUS=$KSUN_SUS_STATUS" >> $GITHUB_OUTPUT
+         echo "WILD_SUS_STATUS=$WILD_SUS_STATUS" >> $GITHUB_OUTPUT
+         echo "SUKI_SUS_STATUS=$SUKI_SUS_STATUS" >> $GITHUB_OUTPUT
 
       - name: Check files before upload
         run: |
           echo "$(ls -lh ~/out_boot/)"
 
-      - name: Upload all boot.img files
+      - name: Upload all AnyKernel3 files
+        if: always()   # To always get back even if failed
         uses: actions/upload-artifact@v4
         with:
-          name: boot_images_all
-          path: ~/out_boot/*
+          name: anykernel_all
+          path: ~/out_boot/*.zip
+
+      - name: Upload all Image files
+        if: always()   # To always get back even if failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: images_all
+          path: ~/out_boot/Image*
+
+      - name: Upload all boot.img files
+        if: always()   # To always get back even if failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: bboot_images_all
+          path: ~/out_boot/*.img
+
+      - name: Upload all .rej, .orig, and patched files
+        if: always()   # To always get back even if failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: rej_files_all
+          path: ~/rej/**/*
+
+      - name: Show results and add to job summary
+        run: |
+          build_status() {
+            [ "$1" = "SUCCESS" ] && echo "✅"
+            [ "$1" = "FAILED" ] && echo "❌"
+            [ -z "$1" ] && echo "⏭️"
+          }
+          show_version() {
+          if [ "$1" = "latest" ]; then
+            echo "Latest"
+          elif [ "$1" = "stable" ]; then
+            echo "Latest Stable"
+          elif [ "$1" = "none" ]; then
+            echo "Build disabled"
+          elif [[ "$1" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Custom commit"
+          elif [[ "$1" =~ [a-zA-Z] || "$val" =~ \. ]]; then
+            echo "Tag: $1"
+          else
+            echo "—"
+          fi
+          }
+          show_commit() {
+          if [ -z "$1" ]; then
+            echo '—'
+          else
+            commit="${1##*/}"               #Cut link from /autor/repo/commit/[commit_num] to [commit_num]
+            echo "[${commit:0:7}…]($1)"
+          fi
+          }
+          restable="$(
+          echo "## 🧾 Build Results Summary"
+          echo ""
+          echo "| --- \ --- | Stock | KernelSU | KernelSU SUSFS | KernelSU-Next | KernelSU-Next SUSFS | Wild KSU | Wild KSU SUSFS | Suki-SU Ultra SUSFS |"
+          echo "|----|----------------|----------------|----------------|----------------|----------------|----------------|----------------|----------------|"
+          echo "| Build status | $(build_status ${{ env.STOCK_STATUS }}) | $(build_status ${{ env.KSU_STATUS }}) | $(build_status ${{ env.KSU_SUS_STATUS }}) | $(build_status ${{ env.KSUN_STATUS }}) | $(build_status ${{ env.KSUN_SUS_STATUS }}) | $(build_status ${{ env.WILD_STATUS }}) | $(build_status ${{ env.WILD_SUS_STATUS }}) | $(build_status ${{ env.SUKI_SUS_STATUS }}) |"
+          echo "| Root solution version | — | $(show_version ${{ inputs.build_KSU }}) | $(show_version ${{ inputs.build_KSU }}) | $(show_version ${{ inputs.build_KSUN }}) | $(show_version ${{ inputs.build_KSUN }}) | $(show_version ${{ inputs.build_WILD }}) | $(show_version ${{ inputs.build_WILD }}) | $(show_version ${{ inputs.build_SUKI }}) |"
+          echo "| Root solution commit | — | $(show_commit ${{ env.KSU_COMMIT }}) | $(show_commit ${{ env.KSU_COMMIT }}) | $(show_commit ${{ env.KSUN_COMMIT }}) | $(show_commit ${{ env.KSUN_COMMIT }}) | $(show_commit ${{ env.WILD_COMMIT }}) | $(show_commit ${{ env.WILD_COMMIT }}) | $(show_commit ${{ env.SUKI_COMMIT }}) |"
+          echo "| susfs4ksu version | — | — | $(show_version ${{ inputs.build_KSU_SUS }}) | — | $(show_version ${{ inputs.build_KSUN_SUS }}) | — | $(show_version ${{ inputs.build_WILD_SUS }}) | $(show_version ${{ inputs.build_SUKI_SUS }}) |"
+          echo "| susfs4ksu commit | — | — | $(show_commit ${{ env.KSU_SUS_COMMIT }}) | — | $(show_commit ${{ env.KSUN_SUS_COMMIT }}) | — | $(show_commit ${{ env.WILD_SUS_COMMIT }}) | $(show_commit ${{ env.SUKI_SUS_COMMIT }}) |"
+          echo ""
+          echo "> Timestamp: $(date)"
+          )"
+          echo "$restable" >> $GITHUB_STEP_SUMMARY
+          echo "$restable"
+
+  trigger-release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.release != 'Test' }}
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_NAME: ${{ github.event.repository.name }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate tag
+      run: |
+        BASE="v1.0-r0"
+        LAST=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[].name' | sort -V | tail -n 1)
+        if [ -z "$LAST" ]; then
+          LAST="$BASE"
+        fi
+        if [[ "${{ github.event.inputs.release }}" == 'Release' ]]; then
+          NEW_TAG=$(echo "$LAST" | awk -F'-r' '{n=$2+1; printf "%s-r%d", $1, n}')
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+          git tag $NEW_TAG
+          git push origin "refs/tags/${NEW_TAG}"
+        else
+          NEW_TAG="$LAST-t${GITHUB_RUN_NUMBER}"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+        echo "NEW TAG:  $BASE -> $NEW_TAG"
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: anykernel_all
+        path: ./artifacts
+
+    - name: Build release notes
+      run: |
+        # Name all variables
+        build_status() {
+          [ "$1" = "SUCCESS" ] && echo "✅"
+          [ "$1" = "FAILED" ] && echo "❌"
+          [ -z "$1" ] && echo "⏭️"
+        }
+        show_version() {
+          if [ "$1" = "latest" ]; then
+            echo "Latest"
+          elif [ "$1" = "stable" ]; then
+            echo "Stable"
+          elif [ "$1" = "none" ]; then
+            echo "Build disabled"
+          elif [[ "$1" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Custom commit"
+          elif [[ "$1" =~ [a-zA-Z] || "$val" =~ \. ]]; then
+            echo "Tag: $1"
+          else
+            echo "—"
+          fi
+        }
+        show_commit() {
+          if [ -z "$1" ]; then
+            echo '—'
+          else
+            commit="${1##*/}"               #Cut link from /autor/repo/commit/[commit_num] to [commit_num]
+            echo "[${commit:0:7}…]($1)"
+          fi
+        }
+
+        cat << EOF > release.md
+        
+        # 🎯 Realme GT neo5 Kernels with multiple root solutions & SUSFS ${SUSFS_VERSION}
+        
+          > **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')  
+          > **Build ID:** \`${{ github.run_id }}\`  
+        
+        **IMPORTANT DISCLAIMER**
+        This software is provided for testing and educational purposes only. Use at your own risk.
+        The developers are not responsible for any damage, data loss, or issues that may occur.
+        Please ensure you have proper backups before installation.
+        
+        # 📦 QTARO Kernels ${{ inputs.release }} \`${{ env.NEW_TAG }}\` contain:
+               
+        | --- \ --- | Stock | KernelSU | KernelSU SUSFS | KernelSU-Next | KernelSU-Next SUSFS | Wild KSU | Wild KSU SUSFS | Suki-SU Ultra SUSFS |
+        |----|----------------|----------------|----------------|----------------|----------------|----------------|----------------|----------------|
+        | Build status | $(build_status ${{ needs.build.outputs.STOCK_STATUS }}) | $(build_status ${{ needs.build.outputs.KSU_STATUS }}) | $(build_status ${{ needs.build.outputs.KSU_SUS_STATUS }}) | $(build_status ${{ needs.build.outputs.KSUN_STATUS }}) | $(build_status ${{ needs.build.outputs.KSUN_SUS_STATUS }}) | $(build_status ${{ needs.build.outputs.WILD_STATUS }}) | $(build_status ${{ needs.build.outputs.WILD_SUS_STATUS }}) | $(build_status ${{ needs.build.outputs.SUKI_SUS_STATUS }}) |
+        | Root solution version | — | $(show_version ${{ inputs.build_KSU }}) | $(show_version ${{ inputs.build_KSU }}) | $(show_version ${{ inputs.build_KSUN }}) | $(show_version ${{ inputs.build_KSUN }}) | $(show_version ${{ inputs.build_WILD }}) | $(show_version ${{ inputs.build_WILD }}) | $(show_version ${{ inputs.build_SUKI }}) |
+        | Root solution commit | — | $(show_commit ${{ needs.build.outputs.KSU_COMMIT }}) | $(show_commit ${{ needs.build.outputs.KSU_COMMIT }}) | $(show_commit ${{ needs.build.outputs.KSUN_COMMIT }}) | $(show_commit ${{ needs.build.outputs.KSUN_COMMIT }}) | $(show_commit ${{ needs.build.outputs.WILD_COMMIT }}) | $(show_commit ${{ needs.build.outputs.WILD_COMMIT }}) | $(show_commit ${{ needs.build.outputs.SUKI_COMMIT }}) |
+        | susfs4ksu version | — | — | $(show_version ${{ inputs.build_KSU_SUS }}) | — | $(show_version ${{ inputs.build_KSUN_SUS }}) | — | $(show_version ${{ inputs.build_WILD_SUS }}) | $(show_version ${{ inputs.build_SUKI_SUS }}) |
+        | susfs4ksu commit | — | — | $(show_commit ${{ needs.build.outputs.KSU_SUS_COMMIT }}) | — | $(show_commit ${{ needs.build.outputs.KSUN_SUS_COMMIT }}) | — | $(show_commit ${{ needs.build.outputs.WILD_SUS_COMMIT }}) | $(show_commit ${{ needs.build.outputs.SUKI_SUS_COMMIT }}) |
+        
+        Build results: ✅ — Succesfull build, ❌ — Build failed, ⏭️ — Build was skipped
+
+          Features:
+          - $([ "${{ inputs.release }}" = "Release" ] && echo "Full LTO optimization for Release!" || echo "Thin LTO for Pre-Release")
+          - Official KSU
+          - KernelSU-Next
+          - Wild KSU
+          - Suki-SU Ultra
+          - Multi Manager Support for WKSU, KernelSU-Next! Needs Testing: KSU, MKSU RKSU, xxKSU, KowSU and SukiSU managers
+          - SUSFS ඞ ${SUSFS_VERSION} variants for all root solutions
+          - Scope-Minimized Manual hooks v1.4 (only KernelSU-Next and Wild KSU)
+          - LZ4KD Patch Integrated
+          - Ptrace Patch Integrated
+          - Sultan Memory Patch Integrated
+          - IPSet Support for Advanced Network Filtering
+          - Wireguard Support
+          - BBR v1 Support
+          - BBG (Baseband-guard)
+
+          Notes:
+          - SUS SU Mode 2 will show as disabled or not compatible due to non-kprobe hooks and is not needed anymore!
+          - Official Kernel Flasher is broken with latest susfs, try [this](https://github.com/fatalcoder524/KernelFlasher/)
+          - **Note:** For detailed commit information and component versions, please check the [build summary](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) in the GitHub Actions workflow that generated this release.
+
+          Latest SUSFS Module [here](https://github.com/sidex15/ksu_module_susfs/releases)
+
+          Managers:
+          [KernelSU](https://github.com/tiann/KernelSU/releases)
+          [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next/releases)
+          [WILD KSU](https://github.com/WildKernels/Wild_KSU/releases)
+          [Suki-SU Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra/releases)
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.NEW_TAG }}
+        prerelease: ${{ inputs.release == 'Test-Release' }}
+        files: ""
+        name: ${{ env.RELEASE_NAME }}
+        body_path: release.md
+
+    - name: Upload assets
+      run: |
+        for file in $(find artifacts -type f); do
+          gh release upload "${{ env.NEW_TAG }}" "$file" --clobber
+        done

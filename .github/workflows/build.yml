@@ -387,15 +387,17 @@ jobs:
         run: |
           cd ~/kernel_platform
           git clone https://github.com/ShirkNeko/SukiSU_patch.git --depth=1 --no-tags
-          # cp SukiSU_patch/other/0001-lz4-Update-to-version-1.9.4.patch ~/kernel_platform/common/
           cp -r SukiSU_patch/other/zram/lz4k/* ~/kernel_platform/common/
           cp -r SukiSU_patch/other/zram/zram_patch/5.10/* ~/kernel_platform/common/
           cp -r SukiSU_patch/other/zram/lz4k_oplus ~/kernel_platform/common/lib/
           cd ~/kernel_platform/common
+          
+          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
+          
           patch -p1 < lz4kd.patch
           patch -p1 < lz4k_oplus.patch
-          # patch -p1 -F3 --fuzz=3 < 0001-lz4-Update-to-version-1.9.4.patch
-          # 1.9.4 Not working correctly
+
+          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/003-zstd.patch  | patch -p1
           
           cd ~/kernel_platform && rm -rf SukiSU_patch
           CONFIG_FILE="./common/arch/arm64/configs/gki_defconfig"
@@ -410,6 +412,9 @@ jobs:
           echo "CONFIG_CRYPTO_842=y" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
+
+          # Add CONFIG_ZSTD_COMMON for zstd 1.5.7, due to new structure (COMMON/COMPRESS/DECOMPRESS)
+          echo "CONFIG_ZSTD_COMMON=y" >> "$CONFIG_FILE"
 
           # Additional
           rm "common/android/gki_aarch64_modules"

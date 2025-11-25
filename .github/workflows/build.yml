@@ -386,35 +386,41 @@ jobs:
       - name: Initial Kernel tweaks (ZRAM)
         run: |
           cd ~/kernel_platform
-          git clone https://github.com/ShirkNeko/SukiSU_patch.git --depth=1 --no-tags
-          cp -r SukiSU_patch/other/zram/lz4k/* ~/kernel_platform/common/
-          cp -r SukiSU_patch/other/zram/zram_patch/5.10/* ~/kernel_platform/common/
-          cp -r SukiSU_patch/other/zram/lz4k_oplus ~/kernel_platform/common/lib/
-          cd ~/kernel_platform/common
+          # git clone https://github.com/ShirkNeko/SukiSU_patch.git --depth=1 --no-tags
+          # cp -r SukiSU_patch/other/zram/lz4k/* ~/kernel_platform/common/
+          # cp -r SukiSU_patch/other/zram/zram_patch/5.10/* ~/kernel_platform/common/
+          # cp -r SukiSU_patch/other/zram/lz4k_oplus ~/kernel_platform/common/lib/
+          # cd ~/kernel_platform/common
           
           curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
           
-          patch -p1 < lz4kd.patch
-          patch -p1 < lz4k_oplus.patch
+          # patch -p1 < lz4kd.patch
+          # patch -p1 < lz4k_oplus.patch
 
           curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/003-zstd.patch  | patch -p1
           
-          cd ~/kernel_platform && rm -rf SukiSU_patch
+          # cd ~/kernel_platform && rm -rf SukiSU_patch
           CONFIG_FILE="./common/arch/arm64/configs/gki_defconfig"
-          echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
-          echo "CONFIG_ZRAM=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_ZRAM=y" >> "$CONFIG_FILE"
           echo "CONFIG_MODULE_SIG=n" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_LZO=y" >> "$CONFIG_FILE"
-          echo "CONFIG_ZRAM_DEF_COMP_LZ4KD=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_LZ4=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZRAM_DEF_COMP_ZSTD=y" >> "$CONFIG_FILE"
+          echo "ZSWAP_COMPRESSOR_DEFAULT_ZSTD=y" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_LZ4HC=y" >> "$CONFIG_FILE"
-          echo "CONFIG_CRYPTO_LZ4K=y" >> "$CONFIG_FILE"
-          echo "CONFIG_CRYPTO_LZ4KD=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_LZ4K=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_LZ4KD=y" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_842=y" >> "$CONFIG_FILE"
-          echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
 
-          # Add CONFIG_ZSTD_COMMON for zstd 1.5.7, due to new structure (COMMON/COMPRESS/DECOMPRESS)
+          # Add CONFIG_ZSTD for zstd 1.5.7, due to new structure (COMMON/COMPRESS/DECOMPRESS)
           echo "CONFIG_ZSTD_COMMON=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD_COMPRESS=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD_DECOMPRESS=y" >> "$CONFIG_FILE"
+          echo "CONFIG_CRYPTO_ZSTD=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD=y" >> "$CONFIG_FILE"
 
           # Additional
           rm "common/android/gki_aarch64_modules"

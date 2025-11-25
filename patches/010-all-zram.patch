@@ -560,8 +560,7 @@ index 9a4871636..eac241633 100644
  #define ZSTD_BTRFS_DEFAULT_LEVEL 3
  #define ZSTD_BTRFS_MAX_LEVEL 15
  /* 307s to avoid pathologically clashing with transaction commit */
--#define ZSTD_BTRFS_RECLAIM_JIFFIES (307 * HZ)
-+#define ZSTD_BTRFS_RECLAIM_JIFFIES (307ZSTD_isError * HZ)
+ #define ZSTD_BTRFS_RECLAIM_JIFFIES (307 * HZ)
  
 -static ZSTD_parameters zstd_get_btrfs_parameters(unsigned int level,
 +static zstd_parameters zstd_get_btrfs_parameters(unsigned int level,

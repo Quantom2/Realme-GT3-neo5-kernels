@@ -390,7 +390,7 @@ jobs:
           # cp -r SukiSU_patch/other/zram/lz4k/* ~/kernel_platform/common/
           # cp -r SukiSU_patch/other/zram/zram_patch/5.10/* ~/kernel_platform/common/
           # cp -r SukiSU_patch/other/zram/lz4k_oplus ~/kernel_platform/common/lib/
-          # cd ~/kernel_platform/common
+          cd ~/kernel_platform/common
           
           curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
           

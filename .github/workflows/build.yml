@@ -385,35 +385,43 @@ jobs:
 
       - name: Initial Kernel tweaks (ZRAM)
         run: |
-          cd ~/kernel_platform
+          CONFIG_FILE="./arch/arm64/configs/gki_defconfig"
+          
+          # cd ~/kernel_platform
           # git clone https://github.com/ShirkNeko/SukiSU_patch.git --depth=1 --no-tags
           # cp -r SukiSU_patch/other/zram/lz4k/* ~/kernel_platform/common/
           # cp -r SukiSU_patch/other/zram/zram_patch/5.10/* ~/kernel_platform/common/
           # cp -r SukiSU_patch/other/zram/lz4k_oplus ~/kernel_platform/common/lib/
-          cd ~/kernel_platform/common
           
-          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
-          
+          # cd ~/kernel_platform/common
           # patch -p1 < lz4kd.patch
           # patch -p1 < lz4k_oplus.patch
+          # rm -rf ~/kernel_platformSukiSU_patch
 
-          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/003-zstd.patch  | patch -p1
-          
-          # cd ~/kernel_platform && rm -rf SukiSU_patch
-          CONFIG_FILE="./common/arch/arm64/configs/gki_defconfig"
+          # ZSMALLOC & ZRAM configs =y results in dead recovery. But LZ4Kx can't be added to zram_drv without ZRAM=y, so they useless RN
           # echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
           # echo "CONFIG_ZRAM=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_LZ4K=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_LZ4KD=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_842=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
+          # echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
+
+          # Additional
+          # rm "android/gki_aarch64_modules"
+          # touch "android/gki_aarch64_modules"
+          # If we want to have ZRAM=m and ZSMALLOC=m, we need to modify gki_aarch64_modules. WIP
+          
+          cd ~/kernel_platform/common
+          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
+          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/003-zstd.patch  | patch -p1
+          
           echo "CONFIG_MODULE_SIG=n" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_LZO=y" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_LZ4=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZRAM_DEF_COMP_ZSTD=y" >> "$CONFIG_FILE"
           echo "ZSWAP_COMPRESSOR_DEFAULT_ZSTD=y" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_LZ4HC=y" >> "$CONFIG_FILE"
-          # echo "CONFIG_CRYPTO_LZ4K=y" >> "$CONFIG_FILE"
-          # echo "CONFIG_CRYPTO_LZ4KD=y" >> "$CONFIG_FILE"
-          echo "CONFIG_CRYPTO_842=y" >> "$CONFIG_FILE"
-          # echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
-          echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
 
           # Add CONFIG_ZSTD for zstd 1.5.7, due to new structure (COMMON/COMPRESS/DECOMPRESS)
           echo "CONFIG_ZSTD_COMMON=y" >> "$CONFIG_FILE"
@@ -421,10 +429,6 @@ jobs:
           echo "CONFIG_ZSTD_DECOMPRESS=y" >> "$CONFIG_FILE"
           echo "CONFIG_CRYPTO_ZSTD=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZSTD=y" >> "$CONFIG_FILE"
-
-          # Additional
-          rm "common/android/gki_aarch64_modules"
-          touch "common/android/gki_aarch64_modules"
           
       - name: Initial Kernel tweaks (Ptrace & Mem patch)
         run: |

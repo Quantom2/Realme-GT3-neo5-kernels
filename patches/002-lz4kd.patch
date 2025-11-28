@@ -371,10 +371,10 @@ index fe7a4b7d3..1cc89d069 100644
         bool "Write back incompressible or idle page to backing device"
         depends on ZRAM
 diff --git a/drivers/block/zram/zcomp.c b/drivers/block/zram/zcomp.c
-index b08650417..4d008b295 100644
+index b08650417..310efbf85 100644
 --- a/drivers/block/zram/zcomp.c
 +++ b/drivers/block/zram/zcomp.c
-@@ -15,14 +15,28 @@
+@@ -15,20 +15,37 @@
  #include "zcomp.h"
  
  static const char * const backends[] = {
@@ -403,6 +403,15 @@ index b08650417..4d008b295 100644
  #if IS_ENABLED(CONFIG_CRYPTO_842)
  	"842",
  #endif
+ #if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
+ 	"zstd",
+ #endif
++#if IS_ENABLED(CONFIG_CRYPTO_ZSTDN)
++	"zstdn",
++#endif
+ };
+ 
+ static void zcomp_strm_free(struct zcomp_strm *zstrm)
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
 index a8b853880..2e7fbebab 100644
 --- a/drivers/block/zram/zram_drv.c
@@ -1138,7 +1147,7 @@ index 000000000..cef922d1e
 +
 +#endif /* _LZ4KD_H */
 diff --git a/kernel/module.c b/kernel/module.c
-index 93fade94f..fb9c28e29 100644
+index 93fade94f..15c1a9db5 100644
 --- a/kernel/module.c
 +++ b/kernel/module.c
 @@ -1352,9 +1352,8 @@ static int check_version(const struct load_info *info,
@@ -1162,10 +1171,10 @@ index 93fade94f..fb9c28e29 100644
 +    "lzo", "lzo_rle",
 +#endif
 +#if IS_BUILTIN(CONFIG_ZRAM)
-+    "zram",
++    "zram", "oplus_bsp_hybridswap_zram",
 +#endif
 +#if IS_BUILTIN(CONFIG_ZSMALLOC)
-+    "zsmalloc",
++    "zsmalloc", "oplus_bsp_zsmalloc",
 +#endif
 +};
 +

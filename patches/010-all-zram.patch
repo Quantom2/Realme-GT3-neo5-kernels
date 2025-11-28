@@ -507,10 +507,10 @@ index fe7a4b7d3..1cc89d069 100644
         bool "Write back incompressible or idle page to backing device"
         depends on ZRAM
 diff --git a/drivers/block/zram/zcomp.c b/drivers/block/zram/zcomp.c
-index b08650417..4d008b295 100644
+index b08650417..310efbf85 100644
 --- a/drivers/block/zram/zcomp.c
 +++ b/drivers/block/zram/zcomp.c
-@@ -15,14 +15,28 @@
+@@ -15,20 +15,37 @@
  #include "zcomp.h"
  
  static const char * const backends[] = {
@@ -539,6 +539,15 @@ index b08650417..4d008b295 100644
  #if IS_ENABLED(CONFIG_CRYPTO_842)
  	"842",
  #endif
+ #if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
+ 	"zstd",
+ #endif
++#if IS_ENABLED(CONFIG_CRYPTO_ZSTDN)
++	"zstdn",
++#endif
+ };
+ 
+ static void zcomp_strm_free(struct zcomp_strm *zstrm)
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
 index a8b853880..2e7fbebab 100644
 --- a/drivers/block/zram/zram_drv.c
@@ -553,12 +562,10 @@ index a8b853880..2e7fbebab 100644
  /* Module params (documentation at end) */
  static unsigned int num_devices = 1;
 diff --git a/fs/btrfs/zstd.c b/fs/btrfs/zstd.c
-index 9a4871636..eac241633 100644
+index 9a4871636..76eee7f1c 100644
 --- a/fs/btrfs/zstd.c
 +++ b/fs/btrfs/zstd.c
-@@ -26,12 +26,12 @@
- #define ZSTD_BTRFS_DEFAULT_LEVEL 3
- #define ZSTD_BTRFS_MAX_LEVEL 15
+@@ -28,10 +28,10 @@
  /* 307s to avoid pathologically clashing with transaction commit */
  #define ZSTD_BTRFS_RECLAIM_JIFFIES (307 * HZ)
  
@@ -7124,7 +7131,7 @@ index 000000000..392abc2bf
 +
 +#endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */
 diff --git a/kernel/module.c b/kernel/module.c
-index 93fade94f..fb9c28e29 100644
+index 93fade94f..c6956ed8c 100644
 --- a/kernel/module.c
 +++ b/kernel/module.c
 @@ -1352,9 +1352,8 @@ static int check_version(const struct load_info *info,
@@ -7139,7 +7146,7 @@ index 93fade94f..fb9c28e29 100644
  }
  
  static inline int check_modstruct_version(const struct load_info *info,
-@@ -3565,13 +3564,26 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
+@@ -3565,13 +3564,29 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
  
  /* module_blacklist is a comma-separated list of module names */
  static char *module_blacklist;
@@ -7148,10 +7155,13 @@ index 93fade94f..fb9c28e29 100644
 +    "lzo", "lzo_rle",
 +#endif
 +#if IS_BUILTIN(CONFIG_ZRAM)
-+    "zram",
++    "zram", "oplus_bsp_hybridswap_zram",
 +#endif
 +#if IS_BUILTIN(CONFIG_ZSMALLOC)
-+    "zsmalloc",
++    "zsmalloc", "oplus_bsp_zsmalloc",
++#endif
++#if IS_BUILTIN(CONFIG_CRYPTO_ZSTD)
++    "zstd", "crypto_zstd", "zstdn", "crypto_zstdn",
 +#endif
 +};
 +
@@ -7167,7 +7177,7 @@ index 93fade94f..fb9c28e29 100644
  
  	for (p = module_blacklist; *p; p += len) {
  		len = strcspn(p, ",");
-@@ -3580,6 +3592,12 @@ static bool blacklisted(const char *module_name)
+@@ -3580,6 +3595,12 @@ static bool blacklisted(const char *module_name)
  		if (p[len] == ',')
  			len++;
  	}
@@ -7180,7 +7190,7 @@ index 93fade94f..fb9c28e29 100644
  	return false;
  }
  core_param(module_blacklist, module_blacklist, charp, 0400);
-@@ -4028,7 +4046,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
+@@ -4028,7 +4049,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
  	 * if it's blacklisted.
  	 */
  	if (blacklisted(info->name)) {

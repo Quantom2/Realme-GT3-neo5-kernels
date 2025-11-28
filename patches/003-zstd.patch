@@ -101,12 +101,10 @@ index 1a3309f06..3da2a10e2 100644
  	*dlen = out_len;
  	return 0;
 diff --git a/fs/btrfs/zstd.c b/fs/btrfs/zstd.c
-index 9a4871636..eac241633 100644
+index 9a4871636..76eee7f1c 100644
 --- a/fs/btrfs/zstd.c
 +++ b/fs/btrfs/zstd.c
-@@ -26,12 +26,12 @@
- #define ZSTD_BTRFS_DEFAULT_LEVEL 3
- #define ZSTD_BTRFS_MAX_LEVEL 15
+@@ -28,10 +28,10 @@
  /* 307s to avoid pathologically clashing with transaction commit */
  #define ZSTD_BTRFS_RECLAIM_JIFFIES (307 * HZ)
  
@@ -5252,12 +5250,26 @@ index 000000000..392abc2bf
 +
 +
 +#endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */
+diff --git a/kernel/module.c b/kernel/module.c
+index 15c1a9db5..c6956ed8c 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -3574,6 +3574,9 @@ static char *custom_module_blacklist[] = {
+ #if IS_BUILTIN(CONFIG_ZSMALLOC)
+     "zsmalloc", "oplus_bsp_zsmalloc",
+ #endif
++#if IS_BUILTIN(CONFIG_CRYPTO_ZSTD)
++    "zstd", "crypto_zstd", "zstdn", "crypto_zstdn",
++#endif
+ };
+ 
+ static bool blacklisted(const char *module_name)
 diff --git a/lib/Kconfig b/lib/Kconfig
-index f9660d033..09227259b 100644
+index 678c8602f..6614e4664 100644
 --- a/lib/Kconfig
 +++ b/lib/Kconfig
-@@ -310,12 +310,16 @@ config LZ4HC_COMPRESS
- config LZ4_DECOMPRESS
+@@ -323,12 +323,16 @@ config LZ4KD_COMPRESS
+ config LZ4KD_DECOMPRESS
  	tristate
  
 -config ZSTD_COMPRESS

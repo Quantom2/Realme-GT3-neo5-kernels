@@ -1,0 +1,32 @@
+diff --git a/kernel/sched/cass.c b/kernel/sched/cass.c
+index ea7c9b2da..55fdc4db5 100644
+--- a/kernel/sched/cass.c
++++ b/kernel/sched/cass.c
+@@ -297,12 +297,12 @@ static int cass_select_task_rq(struct task_struct *p, int prev_cpu,
+ }
+ 
+ static int cass_select_task_rq_fair(struct task_struct *p, int prev_cpu,
+-				    int wake_flags)
++				    int sd_flag, int wake_flags)
+ {
+ 	return cass_select_task_rq(p, prev_cpu, wake_flags, false);
+ }
+ 
+-int cass_select_task_rq_rt(struct task_struct *p, int prev_cpu, int wake_flags)
++int cass_select_task_rq_rt(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags)
+ {
+ 	return cass_select_task_rq(p, prev_cpu, wake_flags, true);
+ }
+diff --git a/kernel/sched/cass_rt.h b/kernel/sched/cass_rt.h
+index 846f5af73..a128d61d2 100644
+--- a/kernel/sched/cass_rt.h
++++ b/kernel/sched/cass_rt.h
+@@ -4,7 +4,7 @@
+  */
+ 
+ #ifdef CONFIG_SCHED_CASS
+-int cass_select_task_rq_rt(struct task_struct *p, int prev_cpu, int wake_flags);
++int cass_select_task_rq_rt(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags);
+ 
+ /* Use CASS. A dummy wrapper ensures the replaced function is still "used". */
+ static inline void *select_task_rq_rt_dummy(void)

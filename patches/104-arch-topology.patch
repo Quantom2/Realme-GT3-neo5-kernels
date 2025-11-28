@@ -1,0 +1,117 @@
+diff --git a/arch/arm64/include/asm/topology.h b/arch/arm64/include/asm/topology.h
+index 11a465243..587ef7e9d 100644
+--- a/arch/arm64/include/asm/topology.h
++++ b/arch/arm64/include/asm/topology.h
+@@ -29,6 +29,8 @@ void topology_scale_freq_tick(void);
+ #define arch_set_freq_scale topology_set_freq_scale
+ #define arch_scale_freq_capacity topology_get_freq_scale
+ #define arch_scale_freq_invariant topology_scale_freq_invariant
++#define arch_set_min_freq_scale topology_set_min_freq_scale
++#define arch_scale_min_freq_capacity topology_get_min_freq_scale
+ 
+ /* Replace task scheduler's default cpu-invariant accounting */
+ #define arch_scale_cpu_capacity topology_get_cpu_scale
+diff --git a/drivers/base/arch_topology.c b/drivers/base/arch_topology.c
+index 321cb3138..4c1df0f84 100644
+--- a/drivers/base/arch_topology.c
++++ b/drivers/base/arch_topology.c
+@@ -60,6 +60,24 @@ void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
+ 		per_cpu(freq_scale, i) = scale;
+ }
+ 
++DEFINE_PER_CPU(unsigned long, arch_min_freq_scale);
++EXPORT_PER_CPU_SYMBOL_GPL(arch_min_freq_scale);
++
++void topology_set_min_freq_scale(const struct cpumask *cpus,
++				 unsigned long min_freq, unsigned long max_freq)
++{
++	unsigned long scale;
++	int i;
++
++	if (WARN_ON_ONCE(!max_freq))
++		return;
++
++	scale = (min_freq * per_cpu(cpu_scale, cpumask_any(cpus))) / max_freq;
++
++	for_each_cpu(i, cpus)
++		per_cpu(arch_min_freq_scale, i) = scale;
++}
++
+ DEFINE_PER_CPU(unsigned long, cpu_scale) = SCHED_CAPACITY_SCALE;
+ EXPORT_PER_CPU_SYMBOL_GPL(cpu_scale);
+ 
+diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
+index fba2d870d..f1f827218 100644
+--- a/drivers/cpufreq/cpufreq.c
++++ b/drivers/cpufreq/cpufreq.c
+@@ -2521,6 +2521,9 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
+ 	policy->max = new_data.max;
+ 	trace_cpu_frequency_limits(policy);
+ 
++	arch_set_min_freq_scale(policy->related_cpus, policy->min,
++				policy->cpuinfo.max_freq);
++
+ 	policy->cached_target_freq = UINT_MAX;
+ 
+ 	pr_debug("new min and max freqs are %u - %u kHz\n",
+diff --git a/include/linux/arch_topology.h b/include/linux/arch_topology.h
+index d76d95310..18ab60481 100644
+--- a/include/linux/arch_topology.h
++++ b/include/linux/arch_topology.h
+@@ -33,6 +33,16 @@ static inline unsigned long topology_get_freq_scale(int cpu)
+ 
+ void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
+ 			     unsigned long max_freq);
++
++DECLARE_PER_CPU(unsigned long, arch_min_freq_scale);
++
++static inline unsigned long topology_get_min_freq_scale(int cpu)
++{
++	return per_cpu(arch_min_freq_scale, cpu);
++}
++
++void topology_set_min_freq_scale(const struct cpumask *cpus,
++				 unsigned long min_freq, unsigned long max_freq);
+ bool topology_scale_freq_invariant(void);
+ 
+ bool arch_freq_counters_available(const struct cpumask *cpus);
+diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
+index 54ee25053..da011c425 100644
+--- a/include/linux/cpufreq.h
++++ b/include/linux/cpufreq.h
+@@ -1033,8 +1033,15 @@ void arch_set_freq_scale(const struct cpumask *cpus,
+ 			 unsigned long max_freq)
+ {
+ }
++#endif
++#ifndef arch_set_min_freq_scale
++static __always_inline
++void arch_set_min_freq_scale(const struct cpumask *cpus,
++			     unsigned long min_freq,
++			     unsigned long max_freq)
++{
++}
+ #endif
+-
+ /* the following are really really optional */
+ extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
+ extern struct freq_attr cpufreq_freq_attr_scaling_boost_freqs;
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 989501f25..d990a5482 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -1683,6 +1683,14 @@ enum {
+ 
+ #undef SCHED_FEAT
+ 
++#ifndef arch_scale_min_freq_capacity
++static __always_inline
++unsigned long arch_scale_min_freq_capacity(int cpu)
++{
++	return 0;
++}
++#endif
++
+ #ifdef CONFIG_SCHED_DEBUG
+ 
+ /*

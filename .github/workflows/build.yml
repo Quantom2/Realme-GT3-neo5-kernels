@@ -409,14 +409,14 @@ jobs:
           touch "android/gki_aarch64_modules"
           
           cd ~/kernel_platform/common
-          # curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
-          # curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/003-zstd.patch  | patch -p1
+          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/001-lz4.patch  | patch -p1
+          curl -Ls https://raw.githubusercontent.com/Quantom2/Realme-GT3-neo5-kernels/refs/heads/test/patches/003-zstd.patch  | patch -p1
 
           # Add CONFIG_ZSTD for zstd 1.5.7, due to new structure (COMMON/COMPRESS/DECOMPRESS)
-          # echo "CONFIG_ZSTD_COMMON=y" >> "$CONFIG_FILE"
-          # echo "CONFIG_ZSTD_COMPRESS=y" >> "$CONFIG_FILE"
-          # echo "CONFIG_ZSTD_DECOMPRESS=y" >> "$CONFIG_FILE"
-          # echo "CONFIG_ZSTD=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD_COMMON=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD_COMPRESS=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD_DECOMPRESS=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSTD=y" >> "$CONFIG_FILE"
           
       - name: Initial Kernel tweaks (Ptrace & Mem patch)
         run: |
@@ -1203,6 +1203,7 @@ jobs:
           - SUSFS ඞ ${SUSFS_VERSION} variants for all root solutions
           - Scope-Minimized Manual hooks v1.4 (only KernelSU-Next and Wild KSU)
           - LZ4KD Patch Integrated
+          - Build-in latest Lz4 (1.10) and Zstd (1.5.7)
           - Ptrace Patch Integrated
           - Sultan Memory Patch Integrated
           - IPSet Support for Advanced Network Filtering
@@ -1212,6 +1213,7 @@ jobs:
 
           Notes:
           - Now recovery is fixed and bootable again!
+          - Meet updated Lz4 to 1.10 and Zstd to 1.5.7!
           - Official Kernel Flasher is broken with latest susfs, try [this](https://github.com/fatalcoder524/KernelFlasher/)
           - **Note:** For detailed commit information and component versions, please check the [build summary](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) in the GitHub Actions workflow that generated this release.
 

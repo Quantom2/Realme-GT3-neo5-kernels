@@ -79,7 +79,7 @@ permissions:
   contents: write
   
 env:
-  SUSFS_VERSION: 'v1.5.12'
+  SUSFS_VERSION: 'v2.0.0'
   RETENTION_COUNT: 5
   TEMPORARY: ''
   
@@ -432,6 +432,23 @@ jobs:
           patch -p1 --forward < ~/kernel_platform/kernel_patches/common/reduce_cache_pressure.patch || echo "Patch failed but continuing"
           echo " >>> NEXT PATCH <<<"
           patch -p1 --forward < ~/kernel_platform/kernel_patches/common/clear_page_16bytes_align.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+
+          # This patches could conflict with more recent ones in development, but enable them for now...
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/minimise_wakeup_time.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/int_sqrt.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/force_tcp_nodelay.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/reduce_gc_thread_sleep_time.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/add_timeout_wakelocks_globally.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/f2fs_reduce_congestion.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/common/reduce_freeze_timeout.patch || echo "Patch failed but continuing"
+          
           rm -rf ~/kernel_platform/kernel_patches
    
       - name: Build 1 (STOCK)
@@ -478,8 +495,9 @@ jobs:
         if: github.event.inputs.build_KSU != 'none' 
         run: |
           cd ~/kernel_platform/KernelSU/kernel/
-          BASE_VERSION=10200
+          BASE_VERSION=20000
           KSU_VERSION="$(expr $(/usr/bin/git rev-list --count HEAD) "+" $BASE_VERSION)"
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
           cd ../ && COMMIT=$(git rev-parse HEAD)
           MOD_VER="KSU_Only_v${KSU_VERSION}" # Name Kernel for user
           echo "KSU_COMMIT=https://github.com/tiann/KernelSU/commit/$COMMIT" >> $GITHUB_ENV
@@ -607,12 +625,12 @@ jobs:
           cd ~/kernel_platform/KernelSU-Next/kernel/
           BASE_VERSION=10200
           KSU_VERSION="$(expr $(/usr/bin/git rev-list --count HEAD) "+" $BASE_VERSION)"
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
           cd ../ && COMMIT=$(git rev-parse HEAD)
           MOD_VER="KSUN_Only_v${KSU_VERSION}" # Name Kernel for user
           echo "KSUN_COMMIT=https://github.com/KernelSU-Next/KernelSU-Next/commit/$COMMIT" >> $GITHUB_ENV
           echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
       - name: KernelSU-Next config update for Build 4
         if: github.event.inputs.build_KSUN != 'none'
@@ -623,15 +641,15 @@ jobs:
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Apply manual hooks for Build 4
-        if: github.event.inputs.build_KSUN != 'none'
-        run: |
-          cd ~/kernel_platform
-          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
-          cp kernel_patches/next/scope_min_manual_hooks_v1.4.patch common/           # Add manual hooks
-          cd ~/kernel_platform/common
-          patch -p1 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing"
-          rm -rf ~/kernel_platform/kernel_patches
+#      - name: Apply manual hooks for Build 4
+#        if: github.event.inputs.build_KSUN != 'none'
+#        run: |
+#          cd ~/kernel_platform
+#          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
+#          cp kernel_patches/next/scope_min_manual_hooks_v1.4.patch common/           # Add manual hooks
+#          cd ~/kernel_platform/common
+#          patch -p1 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing"
+#          rm -rf ~/kernel_platform/kernel_patches
           
       - name: Build 4 (KSUN)
         if: github.event.inputs.build_KSUN != 'none'
@@ -676,7 +694,6 @@ jobs:
           cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch common/       # Add android kernel patch
           cp susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch KernelSU-Next/  # Add KSU patch
           cp kernel_patches/69_hide_stuff.patch common/                                 # Add extra patchs
-          cp kernel_patches/next/scope_min_manual_hooks_v1.4.patch common/                   # Add extra patchs for NEXT
           cd ~/kernel_platform/common
           patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" # Apply android kernel patch
           patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply hide stuff patch
@@ -687,13 +704,15 @@ jobs:
           cd ~/kernel_platform/KernelSU-Next
 
           # Fixing failed patches
-          for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
+          for file in $(find ./kernel -maxdepth 2 -name "*.rej" -exec basename {} .rej \;); do
              echo "Patching file: $file.c with fix_$file.c.patch"
-             patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.c.patch  || echo "Patch failed but continuing"
+             patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.c.patch || echo "Patch failed but continuing"
              echo " >>> NEXT PATCH <<<"
           done
-          patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch  || echo "Patch failed but continuing"
-              
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch || echo "Patch failed but continuing"
+
       - name: Add Configuration and SUSfs Settings for Build 5
         if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
         run: |
@@ -767,16 +786,16 @@ jobs:
           echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV            # Save KSU version for later
           echo "MOD_VER=$MOD_VER" >> $GITHUB_ENV
 
-      - name: Apply manual hooks for Build 6
-        if: github.event.inputs.build_WILD != 'none'
-        run: |
-          cd ~/kernel_platform
-          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
-          cp kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch common/            # Add hooks for WILD
-          cd ~/kernel_platform/common
-          patch -p1 -F 3 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing" # Apply android kernel patch
-          cd ~/kernel_platform
-          rm -rf kernel_patches
+#      - name: Apply manual hooks for Build 6
+#        if: github.event.inputs.build_WILD != 'none'
+#        run: |
+#          cd ~/kernel_platform
+#          git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1 --no-tags
+#          cp kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch common/            # Add hooks for WILD
+#          cd ~/kernel_platform/common
+#          patch -p1 -F 3 < scope_min_manual_hooks_v1.4.patch || echo "Patch failed but continuing" # Apply android kernel patch
+#          cd ~/kernel_platform
+#          rm -rf kernel_patches
 
       - name: Wild KSU Kernel tweaks for Build 6
         if: github.event.inputs.build_WILD != 'none'
@@ -1206,6 +1225,7 @@ jobs:
           - Build-in latest Lz4 (1.10) and Zstd (1.5.7)
           - Ptrace Patch Integrated
           - Sultan Memory Patch Integrated
+          - More optimization patches Integrated
           - IPSet Support for Advanced Network Filtering
           - Wireguard Support
           - BBR v1 Support

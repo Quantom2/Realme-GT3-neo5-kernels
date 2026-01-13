@@ -706,12 +706,14 @@ jobs:
           # Fixing failed patches
           for file in $(find ./kernel -maxdepth 2 -name "*.rej" -exec basename {} .rej \;); do
              echo "Patching file: $file.c with fix_$file.c.patch"
-             patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.c.patch || echo "Patch failed but continuing"
+             patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.patch || echo "Patch failed but continuing"
              echo " >>> NEXT PATCH <<<"
           done
           patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch || echo "Patch failed but continuing"
           echo " >>> NEXT PATCH <<<"
           patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch || echo "Patch failed but continuing"
+          echo " >>> NEXT PATCH <<<"
+          patch -p1 --forward < ~/kernel_platform/kernel_patches/next/susfs_fix_patches/$susfs_version/multi_manager.patch || echo "Patch failed but continuing"
 
       - name: Add Configuration and SUSfs Settings for Build 5
         if: github.event.inputs.build_KSUN != 'none' && github.event.inputs.build_KSUN_SUS != 'none'
@@ -852,18 +854,18 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || echo "Patch failed but continuing" #Apply android kernel patch
           patch -p1 --fuzz=3 -F3 < 69_hide_stuff.patch || echo "Patch failed but continuing"         # Apply hide stuff patch
           echo " >>> NEXT PATCH <<<"
-          cd ~/kernel_platform/Wild_KSU
-          patch -p1 < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"
-
-          # Fixes
-          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_core_hook.c.patch ./
-          patch -p1 < fix_core_hook.c.patch
-
-          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_sucompat.c.patch ./
-          patch -p1 < fix_sucompat.c.patch
-
-          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch ./
-          patch -p1 < fix_kernel_compat.c.patch
+#          cd ~/kernel_platform/Wild_KSU
+#          patch -p1 < 10_enable_susfs_for_ksu.patch || echo "Patch failed but continuing"
+#
+#          # Fixes
+#          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_core_hook.c.patch ./
+#          patch -p1 < fix_core_hook.c.patch
+#
+#          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_sucompat.c.patch ./
+#          patch -p1 < fix_sucompat.c.patch
+#
+#          cp ~/kernel_platform/kernel_patches/wild/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch ./
+#          patch -p1 < fix_kernel_compat.c.patch
           
       - name: Add Configuration and SUSfs Settings for Build 7
         if: github.event.inputs.build_WILD != 'none' && github.event.inputs.build_WILD_SUS != 'none'

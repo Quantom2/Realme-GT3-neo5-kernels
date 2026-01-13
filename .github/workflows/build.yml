@@ -477,7 +477,7 @@ jobs:
         run: |
           cd ~/kernel_platform
           if [[ "${{ github.event.inputs.build_KSU }}" == 'latest' ]]; then
-            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s wild
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
           else
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s "${{ github.event.inputs.build_KSU }}"
           fi
@@ -605,7 +605,7 @@ jobs:
         run: |
           cd ~/kernel_platform
           if [[ "${{ github.event.inputs.build_KSUN }}" == 'latest' ]]; then
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s wild
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
           else
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s "${{ github.event.inputs.build_KSUN }}"
           fi

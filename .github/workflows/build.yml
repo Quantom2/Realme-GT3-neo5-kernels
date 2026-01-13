@@ -14,14 +14,10 @@ on:
           - local_clear
           
       build_KSU:
-        type: choice
+        type: string
         description: "KSU"
         required: true
-        default: 'stable' # stands for '-'. Latest - 'main'
-        options:
-          - 'latest'
-          - 'stable'
-          - 'none'
+        default: 'latest' # stands for '-'. Latest - 'main'
       build_KSU_SUS:
         type: string
         description: "KSU_SUSFS, 'latest', commit, or 'none'"
@@ -29,14 +25,10 @@ on:
         default: 'latest'
         
       build_KSUN:
-        type: choice
+        type: string
         description: "KSU-Next"
         required: true
-        default: 'stable' # stands for '-'. Latest - 'main'
-        options:
-          - 'latest'
-          - 'stable'
-          - 'none'
+        default: 'latest' # stands for '-'. Latest - 'main'
       build_KSUN_SUS:
         type: string
         description: "KSUN_SUSFS, 'latest', commit, 'none'"
@@ -484,10 +476,10 @@ jobs:
         if: github.event.inputs.build_KSU != 'none' 
         run: |
           cd ~/kernel_platform
-          if [[ "${{ github.event.inputs.build_KSU }}" == 'stable' ]]; then
-            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
-          elif [[ "${{ github.event.inputs.build_KSU }}" == 'latest' ]]; then
-            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          if [[ "${{ github.event.inputs.build_KSU }}" == 'latest' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s wild
+          else
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s "${{ github.event.inputs.build_KSU }}"
           fi
           cd ~/
 
@@ -612,10 +604,10 @@ jobs:
         if: github.event.inputs.build_KSUN != 'none' && env.TEMPORARY != ''
         run: |
           cd ~/kernel_platform
-          if [[ "${{ github.event.inputs.build_KSUN }}" == 'stable' ]]; then
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
-          elif [[ "${{ github.event.inputs.build_KSUN }}" == 'latest' ]]; then
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          if [[ "${{ github.event.inputs.build_KSUN }}" == 'latest' ]]; then
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s wild
+          else
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s "${{ github.event.inputs.build_KSUN }}"
           fi
           cd ~/
 

@@ -1,3 +1,4 @@
+| [English](./README.md) | [简体中文](./zh/README.md) | [日本語](./ja/README.md) | [한국어](./ko/README.md) | [Türkçe](./tr/README.md)
 # Realme GT neo5 custom kernels
 
 ## WARNING: Your warranty is no longer valid!
